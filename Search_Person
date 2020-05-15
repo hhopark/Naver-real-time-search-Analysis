@@ -1,0 +1,43 @@
+#인물을 검색하여 분류하는 과정을 통해
+#상품군에 속하지 않는 데이터를 분류하고자 한다.
+
+import openpyxl
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+import os
+
+wb = openpyxl.load_workbook('raw_data_new.xlsx')
+sheet1 = wb.active
+sheet1.title = "20s"
+#wb.save('20s.xlsx')
+
+for i in range(2,1542):
+    a = sheet1.cell(row=i, column=5).value
+
+    Chrome_options = webdriver.ChromeOptions()
+    Chrome_options.add_argument('headless')
+    Chrome_options.add_argument('--disable--gpu')
+    Chrome_options.add_argument('lang=ko_KR')
+    Chrome_options.add_argument("disable-infobars")
+    Chrome_options.add_argument("--disable-extensions")
+
+    driver = webdriver.Chrome('C:\chromedriver_win32\chromedriver.exe', chrome_options=Chrome_options)
+    driver.get('https://people.search.naver.com/')
+
+    while True:
+        elem = driver.find_element_by_id('nx_query')
+        action1 = webdriver.action1 = webdriver.ActionChains(driver).send_keys_to_element(elem, a).send_keys(Keys.ENTER)
+        action1.perform()
+        try:
+            elem = driver.find_element_by_id('content')
+            elem = driver.find_element_by_class_name('who')
+            print(elem.text)
+            sheet1.cell(i, 6, elem.text)
+            wb.save('raw_data_new.xlsx')
+            break
+
+        except (StaleElementReferenceException, NoSuchElementException):
+            sheet1.cell(i, 6, "")
+            wb.save('raw_data_new.xlsx')
+            break
