@@ -1,0 +1,48 @@
+#카테고리 클릭 후 찾기 로직 작성
+#카테고리 분류시 대분류 > 소분류가 아닌
+#소분류 > 대분류인 경우가 있는 것을 찾았다
+#이 코드에서는 카테고리창을 열어 대분류인 text를 가져와 엑셀로 저장하는 역할을 한다
+
+##########################확인###################################
+#1차 분석을 끝내고난 후, 공백이 있는 키워드에 해당하는 키워드들만 사용한다.
+
+import openpyxl
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import NoSuchElementException,StaleElementReferenceException
+import os
+
+wb = openpyxl.load_workbook('raw_data_new_19_3.xlsx')
+sheet1 = wb.active
+#sheet1.title = "20s"
+#wb.save('20s3.xlsx')
+
+for i in range(2,614):
+    a = sheet1.cell(row=i, column=5).value
+
+    Chrome_options = webdriver.ChromeOptions()
+    Chrome_options.add_argument('headless')
+    Chrome_options.add_argument('--disable--gpu')
+    Chrome_options.add_argument('lang=ko_KR')
+
+    driver = webdriver.Chrome('C:\chromedriver_win32\chromedriver.exe', chrome_options=Chrome_options)
+    driver.get('https://shopping.naver.com/home/p/index.nhn')
+
+    while True:
+            elem = driver.find_element_by_name('query')
+            action1 = webdriver.ActionChains(driver).send_keys_to_element(elem, a).send_keys(Keys.ENTER)
+            action1.perform()
+
+            try:
+                elem1 = driver.find_element_by_id('_filter')
+                elem2 = elem1.find_element_by_class_name('btn_extend').click()
+                elem3 = driver.find_element_by_class_name("text_over")
+                sheet1.cell(i, 6, elem3.text)
+                wb.save('raw_data_new_19_3.xlsx')
+                print(elem3.text)
+                break
+
+            except NoSuchElementException:
+                sheet1.cell(i, 6, "")
+                wb.save('raw_data_new_19_3.xlsx')
+                break
