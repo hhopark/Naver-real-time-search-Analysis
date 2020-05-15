@@ -1,53 +1,56 @@
-"""
-네이버의 실시간 검색어를 이용하여 20대, 40대가 가장 주목하는 '브랜드'와  민감하게 반응하는 '소비 트랜드'를 찾고자함
--데이터 구축(5/12기준 3개월간) > 나이대, 날짜, 시간, 순위, 키워드
--index 4에 해당하는 '키워드'를 분류하는 작업을 통해 카테고리별로 정리. 실시간 순위에 오른 카테고리별 '빈도수' 산출
--'빈도수'를 통해 분석한 '카테고리'는 이슈에 따른 '민감도'로 트랜드를 파악하는 지표로 사용
--'트랜드'에 해당하는 '카테고리'를 한 번 더 세부적으로 분류하는 과정을 통해 '세부카테고리'의 빈도수를 다시 산출 가장 주목하고 있는 '브랜드'를 선정
-"""
-"""
-1. 네이버 쇼핑 카테고리별 분류
--검색어 키워드를 네이버 쇼핑 검색창에 자동검색 시키고
--카테고리를 index 5에 저장//제품으로 등록되어있지 않은 키워드 자동 분류
-2. 인물 분류
-
-카테고리별 빈도수 확인
--검색어 카테고리의 통계를 확인하고 그래프로 출력
-"""
+import datetime
+import pandas as pd
+import numpy as np
 import time
-import openpyxl
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import NoSuchElementException,StaleElementReferenceException
-import os
+import requests
+from bs4 import BeautifulSoup
+from lxml.html import fromstring
+pd.options.display.max_rows = 100
 
-wb = openpyxl.load_workbook('raw_data.xlsx')
-sheet1 = wb.active
+age_list = ['20s']
+date_range1 = range(0,27)
+date_range2 = range(41,91)
+hour_range = ['00']
 
-for i in range(1170,1541):
-    a = sheet1.cell(row=i, column=5).value
+url_A = 'https://datalab.naver.com/keyword/realtimeList.naver?age='
+url_Z = '%3A00%3A00&entertainment=-2&groupingLevel=4&marketing=2&news=-2&sports=-2'
+headers = {'User-Agent': 'Mozilla/5.0 (Macintosh)...'}
 
-    Chrome_options = webdriver.ChromeOptions()
-    Chrome_options.add_argument('headless')
-    Chrome_options.add_argument('--disable--gpu')
-    Chrome_options.add_argument('lang=ko_KR')
+start_date = datetime.datetime.now() + datetime.timedelta(days = -int(1))
 
-    driver = webdriver.Chrome('C:\chromedriver_win32\chromedriver.exe', chrome_options=Chrome_options)
-    driver.get('https://shopping.naver.com/home/p/index.nhn')
+print(start_date)
+list = []
+for age in age_list:
+    for date in date_range1:
+        target_date = start_date + datetime.timedelta(days = -int(date))
+        target_date = target_date.strftime('%Y-%m-%d')
+        print(target_date)
+        for hour in hour_range:
+            url = url_A+age+'&datetime='+target_date+'T'+hour+url_Z
+            response = requests.get(url, headers = headers)
+            value = fromstring(response.text)
 
-    while True:
-        elem = driver.find_element_by_name('query')
-        action1 = webdriver.ActionChains(driver).send_keys_to_element(elem, a).send_keys(Keys.ENTER)
-        action1.perform()
+            for rank in range(1,11):
+                time.sleep(4)
+                result = value.xpath(f'//*[@id="content"]/div/div[2]/div[2]/div[2]/div/div/ul[1]/li[{rank}]/div/span[2]/span[1]/text()')
+                list.append([age,target_date,hour,rank,result[0]])
+                print([age, target_date, hour, rank, result[0]])
 
-        try:
-            elem = driver.find_element_by_class_name('text_over')
-            sheet1.cell(i, 6, elem.text)
-            print(elem.text)
-            wb.save('raw_data.xlsx')
-            break
+for age in age_list:
+    for date in date_range2:
+        target_date = start_date + datetime.timedelta(days = -int(date))
+        target_date = target_date.strftime('%Y-%m-%d')
+        for hour in hour_range:
+            url = url_A+age+'&datetime='+target_date+'T'+hour+url_Z
+            response = requests.get(url, headers = headers)
+            value = fromstring(response.text)
 
-        except NoSuchElementException:
-            sheet1.cell(i, 6, "")
-            wb.save('raw_data.xlsx')
-            break
+            for rank in range(1,11):
+                time.sleep(4)
+                result = value.xpath(f'//*[@id="content"]/div/div[2]/div[2]/div[2]/div/div/ul[1]/li[{rank}]/div/span[2]/span[1]/text()')
+                list.append([age,target_date,hour,rank,result[0]])
+                print([age, target_date, hour, rank, result[0]])
+
+raw_data = pd.DataFrame(list)
+raw_data.columns = ['연령대','일자','시간','랭킹','검색어']
+raw_data.to_csv("raw_data_new.csv", header = True, index = False,encoding='cp949')
